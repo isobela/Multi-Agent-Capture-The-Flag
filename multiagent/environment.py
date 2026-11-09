@@ -88,6 +88,8 @@ class MultiAgentEnv(gym.Env):
             self._set_action(action_n[i], agent, self.action_space[i])
         # advance world state
         self.world.step()
+        if hasattr(self.world, "game_update_callback"):
+            self.world.game_update_callback(self.world)
         # record observation for each agent
         for agent in self.agents:
             obs_n.append(self._get_obs(agent))
@@ -210,7 +212,7 @@ class MultiAgentEnv(gym.Env):
                     else:
                         word = alphabet[np.argmax(other.state.c)]
                     message += (other.name + ' to ' + agent.name + ': ' + word + '   ')
-            print(message)
+            #print(message)
 
         for i in range(len(self.viewers)):
             # create viewers (if necessary)
@@ -218,7 +220,7 @@ class MultiAgentEnv(gym.Env):
                 # import rendering only if we need it (and don't import for headless machines)
                 #from gym.envs.classic_control import rendering
                 from multiagent import rendering
-                self.viewers[i] = rendering.Viewer(700,700)
+                self.viewers[i] = rendering.Viewer(900,900)
 
         # create rendering geometry
         if self.render_geoms is None:
