@@ -7,15 +7,19 @@ def scripted_action(agent, world):
         return guard_policy(agent, world)
 
 
+
 def move_toward(agent, target):
     """Return a discrete movement action."""
     delta = target - agent.state.p_pos
+
     if np.linalg.norm(delta) < 0.05:
-        return 0  # 
+        return 0  # Stay
+
     if abs(delta[0]) > abs(delta[1]):
-        return 2 if delta[0] > 0 else 1
+        return 1 if delta[0] > 0 else 2
     else:
-        return 4 if delta[1] > 0 else 3
+        return 3 if delta[1] > 0 else 4
+
 
 
 def seeker_policy(agent, world):
