@@ -37,9 +37,11 @@ class Scenario(BaseScenario):
             flag.name = f"{flag.team}_flag"
 
             flag.collide = False
-            flag.movable = False # todo
+            flag.movable = False # keep false, controlled manually
             flag.size = 0.07
             flag.boundary = False
+
+            flag.carrier = None
 
         world.spawn_zones = {
             "blue": np.array([-0.7, 0.0]),
@@ -164,7 +166,7 @@ class Scenario(BaseScenario):
                 if self.distance(guard, seeker) < 0.1:
                     # If seeker carries a flag, return it
                     if seeker.hasFlag:
-                        self.return_flag(world, seeker)
+                        self.drop_flag(world, seeker)
                     
                     print(f"Tag!!! {guard.name} tagged {seeker.name}")
                     self.respawn(seeker, world)
@@ -201,19 +203,17 @@ class Scenario(BaseScenario):
                 world.game_over = True
                 print(f"game over {seeker.team.upper()} team wins")
                 break
-
-    def return_flag(self, world, seeker):
-
+        # update flag position when picked up
         for flag in world.landmarks:
+            if flag.carrier is not None:
+                flag.state.p_pos = flag.carrier.state.p_pos.copy()
 
-            if getattr(flag, "carrier", None) is seeker:
-
+    def drop_flag(self, world, seeker):
+        for flag in world.landmarks:
+            if flag.carrier is seeker:
+                flag.state.p_pos = seeker.state.p_pos.copy()
+                flag.state.p_vel = np.zeros(world.dim_p)
                 flag.carrier = None
-
-                if flag.team == "blue":
-                    flag.state.p_pos = np.array([-0.4, 0.0])
-                else:
-                    flag.state.p_pos = np.array([0.4, 0.0])
 
         seeker.hasFlag = False
 
