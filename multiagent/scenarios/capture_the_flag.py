@@ -57,6 +57,8 @@ class Scenario(BaseScenario):
         world.winner = None
         world.game_over = False
         world.flag_carrier = None
+        world.pickup_count = {"blue": 0, "red": 0}
+        world.tag_count = {"blue": 0, "red": 0}
 
         # Initialize flags
         for flag in world.landmarks:
@@ -71,12 +73,14 @@ class Scenario(BaseScenario):
             flag.carrier = None
 
         # Spawn agents around their team's spawn zone
-        for agent in world.agents:
+        for idx, agent in enumerate(world.agents):
 
             center = world.spawn_zones[agent.team]
 
+            #give each teammate a distinct vertical offset to avoid spawning on top of each other
+            y_offset = -0.15 if (idx % 2 == 0) else 0.15
             # Random offset around spawn center
-            offset = np.random.uniform(-0.15, 0.15, size=2)
+            offset = np.array([np.random.uniform(-0.08, 0.08), y_offset + np.random.uniform(-0.05, 0.05)])
 
             agent.state.p_pos = center + offset
             agent.state.p_vel = np.zeros(world.dim_p)
@@ -93,18 +97,27 @@ class Scenario(BaseScenario):
         # shared team reward for baseline
         if world.winner is None:
             return 0.0
-        if agent.team == world.winner:
-            return 1.0
-        return 0.0
+        return 1.0 if agent.team == world.winner else -1.0
 
     def observation(self, agent, world):
-        other_positions = [
-            other.state.p_pos - agent.state.p_pos
-            for other in world.agents if other is not agent]
 
-        flag_positions = [
-            flag.state.p_pos - agent.state.p_pos
-            for flag in world.landmarks]
+        #mirror x-axis for red team so both teams see own base on the left (-x)
+        sign = -1.0 if agent.team == "red" else 1.0
+
+        def rel_vec(target_pos):
+            vec = target_pos - agent.state.p_pos
+            return np.array([sign*vec[0], vec[1]])
+
+        own_pos = np.array([sign*agent.state.p_pos[0], agent.state.p_pos[1]])
+        own_vel = np.array([sign*agent.state.p_vel[0], agent.state.p_vel[1]])
+
+        teammates = [rel_vec(o.state.p_pos) for o in world.agents if o is not agent and o.team == agent.team]
+        opponents = [rel_vec(o.state.p_pos) for o in world.agents if o.team != agent.team]
+
+        own_flag = [rel_vec(f.state.p_pos) for f in world.landmarks if f.team == agent.team]
+        enemy_flag = [rel_vec(f.state.p_pos) for f in world.landmarks if f.team != agent.team]
+        
+        own_home = [rel_vec(world.spawn_zones[agent.team])]
 
         # Whether this agent is carrying a flag
         has_flag = np.array([float(agent.hasFlag)])
@@ -113,9 +126,12 @@ class Scenario(BaseScenario):
         role = np.array([float(agent.role == "seeker")])
 
         return np.concatenate(
-            [agent.state.p_pos, agent.state.p_vel]
-            + other_positions
-            + flag_positions
+            [own_pos, own_vel]
+            + teammates
+            + opponents
+            + own_flag
+            + enemy_flag
+            + own_home
             + [has_flag, role]
         )
     
@@ -167,6 +183,8 @@ class Scenario(BaseScenario):
                     # If seeker carries a flag, return it
                     if seeker.hasFlag:
                         self.drop_flag(world, seeker)
+
+                    world.tag_count[guard.team] +=1    
                     
                     print(f"Tag!!! {guard.name} tagged {seeker.name}")
                     self.respawn(seeker, world)
@@ -188,6 +206,7 @@ class Scenario(BaseScenario):
                 if self.distance(seeker, flag) < 0.1:
                     seeker.hasFlag = True
                     flag.carrier = seeker
+                    world.pickup_count[seeker.team] += 1
 
                     print(f"pickup!!! {seeker.name} picked up {flag.name}")
 
