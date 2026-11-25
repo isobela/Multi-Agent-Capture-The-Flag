@@ -59,6 +59,12 @@ class Scenario(BaseScenario):
         world.flag_carrier = None
         world.pickup_count = {"blue": 0, "red": 0}
         world.tag_count = {"blue": 0, "red": 0}
+        world.step_events = {
+            "blue_pickup": 0,
+            "red_pickup": 0,
+            "blue_tag": 0,
+            "red_tag": 0,
+        }
 
         # Initialize flags
         for flag in world.landmarks:
@@ -95,9 +101,34 @@ class Scenario(BaseScenario):
 
     def reward(self, agent, world):
         # shared team reward for baseline
-        if world.winner is None:
-            return 0.0
-        return 1.0 if agent.team == world.winner else -1.0
+        base_r = 0.0
+        if getattr(world, "game_over", False):
+            if world.winner == agent.team:
+                base_r = 1.0
+            elif world.winner is not None:
+                base_r = -1.0
+            else:
+                base_r = 0.0
+
+        reward_mode = getattr(world, "reward_mode", "sparse")
+        if reward_mode == "sparse":
+            return base_r
+
+        event_r = 0.0
+        team = agent.team
+
+        if reward_mode in ("event", "full"):
+            step_pickups = world.step_events[f"{team}_pickup"]
+            step_tags = world.step_events[f"{team}_tag"]
+            event_r += 0.20*step_pickups + 0.15*step_tags
+
+        if agent is world.agents[-1]:
+            world.step_events["blue_pickup"] = 0
+            world.step_events["red_pickup"] = 0
+            world.step_events["blue_tag"] = 0
+            world.step_events["red_tag"] = 0
+
+        return base_r + event_r
 
     def observation(self, agent, world):
 
@@ -184,7 +215,8 @@ class Scenario(BaseScenario):
                     if seeker.hasFlag:
                         self.drop_flag(world, seeker)
 
-                    world.tag_count[guard.team] +=1    
+                    world.tag_count[guard.team] +=1
+                    world.step_events[f"{guard.team}_tag"] +=1    
                     
                     print(f"Tag!!! {guard.name} tagged {seeker.name}")
                     self.respawn(seeker, world)
@@ -207,6 +239,7 @@ class Scenario(BaseScenario):
                     seeker.hasFlag = True
                     flag.carrier = seeker
                     world.pickup_count[seeker.team] += 1
+                    world.step_events[f"{seeker.team}_pickup"]+=1
 
                     print(f"pickup!!! {seeker.name} picked up {flag.name}")
 
