@@ -165,7 +165,7 @@ def train_seekers():
             returns, advantages = returns_and_advantages(episode_rewards[i], episode_values[i], gamma)
 
             for log_p, adv in zip(episode_log_probs[i], advantages):
-                entropy_bonus = dist.entropy().mean()
+                entropy_bonus = dist.entropy.mean()
                 policy_loss = -log_p * adv.item() - 0.01*entropy_bonus
                 seeker_log_probs.append(policy_loss)
 
