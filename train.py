@@ -792,17 +792,17 @@ def main():
     os.makedirs("Multi-Agent-Capture-The-Flag/trained_models", exist_ok=True)
     
     seeker_actor = train_seekers("event")
-    torch.save(seeker_actor.state_dict(), "Multi-Agent-Capture-The-Flag/trained_models/cond2/stage1_seeker_actor.pth")
+    torch.save(seeker_actor.state_dict(), "Multi-Agent-Capture-The-Flag/trained_models/cond3/stage1_seeker_actor.pth")
 
     seeker_actor = train_with_static_guards("event", trained_seeker_actor=seeker_actor)
-    torch.save(seeker_actor.state_dict(), "Multi-Agent-Capture-The-Flag/trained_models/cond2/stage2_seeker_actor.pth")
+    torch.save(seeker_actor.state_dict(), "Multi-Agent-Capture-The-Flag/trained_models/cond3/stage2_seeker_actor.pth")
 
     guard_actor = train_guards_with_trained_seekers("event", trained_seeker_actor=seeker_actor)
-    torch.save(guard_actor.state_dict(), "Multi-Agent-Capture-The-Flag/trained_models/cond2/stage3_guard_actor.pth")
+    torch.save(guard_actor.state_dict(), "Multi-Agent-Capture-The-Flag/trained_models/cond3/stage3_guard_actor.pth")
 
     seeker_actor, guard_actor = train_with_scripted_team("event", seeker_actor, guard_actor)
-    torch.save(seeker_actor.state_dict(), "Multi-Agent-Capture-The-Flag/trained_models/cond2/stage4_seeker_actor.pth")
-    torch.save(guard_actor.state_dict(), "Multi-Agent-Capture-The-Flag/trained_models/cond2/stage4_guard_actor.pth")
+    torch.save(seeker_actor.state_dict(), "Multi-Agent-Capture-The-Flag/trained_models/cond3/stage4_seeker_actor.pth")
+    torch.save(guard_actor.state_dict(), "Multi-Agent-Capture-The-Flag/trained_models/cond3/stage4_guard_actor.pth")
 
 if __name__ == "__main__":
     main()
