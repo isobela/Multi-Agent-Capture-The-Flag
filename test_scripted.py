@@ -75,6 +75,7 @@ for step in range(300):
     if all(done_n):
         print(f"Game finished at step {step}")
         print(f"Winner: {env.world.winner}")
+        print(f"Reward: {reward_n}")
         break
 
 else:
