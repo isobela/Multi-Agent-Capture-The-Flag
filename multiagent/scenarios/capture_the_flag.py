@@ -26,6 +26,12 @@ class Scenario(BaseScenario):
             agent.max_speed = 1.0
             agent.hasFlag = False
 
+            agent.step_pickup = 0
+            agent.step_tag = 0
+            agent.step_tagged = 0
+            agent.step_dropped_flag = 0
+
+
             agent.color = (
                 np.array([0.2, 0.4, 0.9]) if agent.team == "blue"
                 else np.array([0.9, 0.2, 0.2]))
@@ -92,6 +98,10 @@ class Scenario(BaseScenario):
             agent.state.p_vel = np.zeros(world.dim_p)
             agent.state.c = np.zeros(world.dim_c)
             agent.hasFlag = False
+            agent.step_pickup = 0
+            agent.step_tag = 0
+            agent.step_tagged = 0
+            agent.step_dropped_flag = 0
 
             # Set colors
             if agent.team == "blue":
@@ -118,11 +128,20 @@ class Scenario(BaseScenario):
         team = agent.team
 
         if reward_mode in ("event", "full"):
-            step_pickups = world.step_events[f"{team}_pickup"]
-            step_tags = world.step_events[f"{team}_tag"]
-            event_r += 0.20*step_pickups + 0.15*step_tags
+            event_r +=0.1 * getattr(agent, "step_pickup", 0)
+            event_r +=0.1 * getattr(agent, "step_tag", 0)
+            event_r -= 0.05 * getattr(agent, "step_tagged", 0)
+            event_r -= 0.05 * getattr(agent, "step_dropped_flag", 0)
 
+        #reset per-agent and team step counters after the last agent is querried    
         if agent is world.agents[-1]:
+
+            for a in world.agents:
+                a.step_pickup = 0
+                a.step_tag = 0
+                a.step_tagged = 0
+                a.step_dropped_flag = 0
+
             world.step_events["blue_pickup"] = 0
             world.step_events["red_pickup"] = 0
             world.step_events["blue_tag"] = 0
@@ -187,6 +206,20 @@ class Scenario(BaseScenario):
         )
         agent.state.p_vel = np.zeros(world.dim_p)
 
+    def guard_territory(self, guard):
+        #enforce guards to stay on their team's sides
+        if guard.team == "blue":
+            if guard.state.p_pos[0] > 0.0:
+                guard.state.p_pos[0] = 0.0
+                if guard.state.p_vel[0] > 0.0:
+                    guard.state.p_vel[0] = 0.0
+
+        else:
+            if guard.state.p_pos[0] < 0.0:
+                guard.state.p_pos[0] = 0.0
+                if guard.state.p_vel[0] < 0.0:
+                    guard.state.p_vel[0] = 0.0    
+
     def update_game(self, world):
         if world.game_over:
             return
@@ -195,15 +228,15 @@ class Scenario(BaseScenario):
         # Keep agents within the playable area
         for agent in world.agents:
             agent.state.p_pos = np.clip(agent.state.p_pos,-1.0,1.0)
+            if agent.role == "guard":
+                self.guard_territory(agent)
 
         # 1. Guards tag opposing seekers
         for guard in world.agents:
             if guard.role != "guard":
                 continue
             for seeker in world.agents:
-                if seeker.role != "seeker":
-                    continue
-                if seeker.team == guard.team:
+                if seeker.role != "seeker" or seeker.team == guard.team:
                     continue
                 # Both must be on the guard's territory
                 if not self.on_territory(guard, guard.team):
@@ -214,6 +247,11 @@ class Scenario(BaseScenario):
                     # If seeker carries a flag, return it
                     if seeker.hasFlag:
                         self.drop_flag(world, seeker)
+                        seeker.step_dropped_flag += 1
+                        print(f"Drop!!! {seeker.name} dropped flag")
+
+                    guard.step_tag +=1
+                    seeker.step_tagged +=1
 
                     world.tag_count[guard.team] +=1
                     world.step_events[f"{guard.team}_tag"] +=1    
@@ -224,11 +262,7 @@ class Scenario(BaseScenario):
 
         # 2. Seekers pick up opposing flags
         for seeker in world.agents:
-            if seeker.role != "seeker":
-                continue
-            if seeker in tagged_seekers:
-                continue
-            if seeker.hasFlag:
+            if seeker.role != "seeker" or seeker in tagged_seekers or seeker.hasFlag:
                 continue
             for flag in world.landmarks:
                 if flag.team == seeker.team:
@@ -238,6 +272,9 @@ class Scenario(BaseScenario):
                 if self.distance(seeker, flag) < 0.1:
                     seeker.hasFlag = True
                     flag.carrier = seeker
+
+                    seeker.step_pickup +=1
+
                     world.pickup_count[seeker.team] += 1
                     world.step_events[f"{seeker.team}_pickup"]+=1
 

@@ -9,7 +9,7 @@ from multiagent.environment import MultiAgentEnv
 import multiagent.scenarios.capture_the_flag as capture_the_flag
 
 from models.actor import Actor
-from models.critic import Critic
+from models.critic import Two_Head_Critic
 
 from models.scripted_policy import scripted_action
 
@@ -98,7 +98,7 @@ def train_seekers(reward_mode):
     global_state_dim = obs_dim*num_agents
 
     seeker_actor = Actor(obs_dim, action_dim)
-    critic = Critic(global_state_dim)
+    critic = Two_Head_Critic(global_state_dim)
 
     seeker_actor_optimizer = optim.Adam(seeker_actor.parameters(), lr=1e-3)
     critic_optimizer = optim.Adam(critic.parameters(), lr=1e-3)
@@ -257,7 +257,7 @@ def train_with_static_guards(reward_mode, trained_seeker_actor=None):
         seeker_actor = expand_actor_input(
             trained_seeker_actor, obs_dim, prefix_dim, suffix_dim
         )
-    critic = Critic(global_state_dim)
+    critic = Two_Head_Critic(global_state_dim)
 
     seeker_actor_optimizer = optim.Adam(seeker_actor.parameters(), lr=1e-3)
     critic_optimizer = optim.Adam(critic.parameters(), lr=1e-3)
@@ -430,7 +430,7 @@ def train_guards_with_trained_seekers(reward_mode, trained_seeker_actor):
         param.requires_grad = False
 
     guard_actor = Actor(obs_dim, action_dim)
-    critic = Critic(global_state_dim)
+    critic = Two_Head_Critic(global_state_dim)
 
     guard_actor_optimizer = optim.Adam(guard_actor.parameters(), lr=1e-3)
     critic_optimizer = optim.Adam(critic.parameters(), lr=1e-3)
@@ -604,7 +604,7 @@ def train_with_scripted_team(reward_mode, seeker_actor, guard_actor):
 
     seeker_actor.train()
     guard_actor.train()
-    critic = Critic(global_state_dim)
+    critic = Two_Head_Critic(global_state_dim)
 
     seeker_optimizer = optim.Adam(seeker_actor.parameters(), lr=5e-04)
     guard_optimizer = optim.Adam(guard_actor.parameters(), lr=5e-04)
@@ -650,7 +650,7 @@ def train_with_scripted_team(reward_mode, seeker_actor, guard_actor):
         for step in range(200):
             steps_taken = step+1
             global_state = torch.FloatTensor(np.concatenate(obs)).unsqueeze(0)
-            val_seeker, val_guard = critic(global_state)
+            val_seeker, val_guard = Two_Head_Critic(global_state)
 
             actions = []
             for i, agent in enumerate(env.agents):
